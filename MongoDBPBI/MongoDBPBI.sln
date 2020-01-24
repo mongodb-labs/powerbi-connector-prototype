@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29613.14
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{4DF76451-A46A-4C0B-BE03-459FAAFA07E6}") = "MongoDBPBI", "MongoDBPBI\MongoDBPBI.mproj", "{9E49D885-032D-449A-8534-CD42AEBB01FA}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x86 = Debug|x86
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{9E49D885-032D-449A-8534-CD42AEBB01FA}.Debug|x86.ActiveCfg = Debug|x86
+		{9E49D885-032D-449A-8534-CD42AEBB01FA}.Debug|x86.Build.0 = Debug|x86
+		{9E49D885-032D-449A-8534-CD42AEBB01FA}.Release|x86.ActiveCfg = Release|x86
+		{9E49D885-032D-449A-8534-CD42AEBB01FA}.Release|x86.Build.0 = Release|x86
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {CEF5AF7E-ABBF-4E2A-B79D-5F9B0E8DBC41}
+	EndGlobalSection
+EndGlobal
