@@ -5,7 +5,7 @@ EnableTraceOutput = true;
 /****************************
  * ODBC Driver Configuration
  ****************************/
-Config_DriverName = "MongoDB ODBC 1.2.0 Unicode Driver";
+Config_DriverName = "MongoDB ODBC 1.3.0 ANSI Driver";
 // If your driver under-reports its SQL conformance level because it does not
 // support the full range of CRUD operations, but does support the ANSI SQL required
 // to support the SELECT operations performed by Power Query, you can override 
@@ -55,13 +55,13 @@ Config_StringLiterateEscapeCharacters  = { "\" }; // ex. { "\" }
 //
 // Set to false or null to leave default behavior. 
 //
-Config_UseCastInsteadOfConvert = null; // true, false, null 
+Config_UseCastInsteadOfConvert = false; // true, false, null 
 
 // If the driver supports the TOP clause in select statements, set this to true. 
 // If set to false, you MUST implement the AstVisitor for the LimitClause in the 
 // main body of the code below. 
 //
-Config_SupportsTop = true; // true, false
+Config_SupportsTop = false; // true, false
 
 // Set this to true to enable Direct Query in addition to Import mode.
 //
@@ -73,16 +73,16 @@ shared MongoDBPBI.Contents = (server as text,  port as text, optional database a
         //
         // Connection string settings
         //
+        ConnectionRecords = if database <> null then  
+            [Server = server,
+            port = port,
+            database = database] else 
+            [ Server = server,
+            port = port],
         ConnectionString = [
             Driver = Config_DriverName,
-
-            // set all connection string properties
-            Server = server,
-            port = port,
-            database = database,
             ApplicationIntent = "readonly"
-        ],
-
+        ] & ConnectionRecords,
         //
         // Handle credentials
         // Credentials are not persisted with the query and are set through a separate 
@@ -95,9 +95,6 @@ shared MongoDBPBI.Contents = (server as text,  port as text, optional database a
             if Credential[AuthenticationKind]? = "UsernamePassword" then
                 // set connection string parameters used for basic authentication
                 [ UID = Credential[Username], PWD = Credential[Password] ]
-            else if (Credential[AuthenticationKind]? = "Windows") then
-                // set connection string parameters used for windows/kerberos authentication
-                [ Trusted_Connection="Yes" ]
             else
                 error Error.Record("Error", "Unhandled authentication kind: " & Credential[AuthenticationKind]?),
         
@@ -169,7 +166,7 @@ shared MongoDBPBI.Contents = (server as text,  port as text, optional database a
         // operations. The most common usage is to define syntax for LIMIT/OFFSET operators 
         // when TOP is not supported. 
         // 
-/*
+
         AstVisitor = [
             LimitClause = (skip, take) =>
                 let
@@ -181,7 +178,7 @@ shared MongoDBPBI.Contents = (server as text,  port as text, optional database a
                         Location = "AfterQuerySpecification"
                     ]
         ],
-*/
+
         OdbcDatasource = Odbc.DataSource(ConnectionString, [
             // A logical (true/false) that sets whether to view the tables grouped by their schema names
             HierarchicalNavigation = true, 
@@ -217,12 +214,13 @@ MongoDBPBI = [
     TestConnection = (dataSourcePath) => 
         let
             json = Json.Document(dataSourcePath),
-            server = json[server]   // name of function parameter
+            server = json[server],
+            port = json[port],
+            database = json[database] // name of function parameter
         in
-            { "MongoDBPBI.Content", server },
+            { "MongoDBPBI.Content", server, port, database },
     // Set supported types of authentication
     Authentication = [
-        Windows = [],
         UsernamePassword = []
     ],
     Label = Extension.LoadString("DataSourceLabel")
