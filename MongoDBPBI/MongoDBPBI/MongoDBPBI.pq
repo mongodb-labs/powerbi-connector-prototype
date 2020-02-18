@@ -1,11 +1,28 @@
-﻿section MongoDBPBI;
+﻿// This connector provides a sample Direct Query enabled connector 
+// based on an ODBC driver. It is meant as a template for other 
+// ODBC based connectors that require similar functionality.
+// 
+section MongoDBPBI;
 
+// When set to true, additional trace information will be written out to the User log. 
+// This should be set to false before release. Tracing is done through a call to 
+// Diagnostics.LogValue(). When EnableTraceOutput is set to false, the call becomes a 
+// no-op and simply returns the original value.
 EnableTraceOutput = true;
+
+// TODO
+// add and handle common options record properties
+// add handling for LIMIT/OFFSET vs. TOP 
+// add handling for SSL
 
 /****************************
  * ODBC Driver Configuration
  ****************************/
+
+// The name of your ODBC driver.
+//
 Config_DriverName = "MongoDB ODBC 1.3.0 ANSI Driver";
+
 // If your driver under-reports its SQL conformance level because it does not
 // support the full range of CRUD operations, but does support the ANSI SQL required
 // to support the SELECT operations performed by Power Query, you can override 
@@ -22,9 +39,46 @@ Config_DriverName = "MongoDB ODBC 1.3.0 ANSI Driver";
 //
 // Set to null to determine the value from the driver.
 // 
-Config_SqlConformance = 8;  // null, 1, 2, 4, 8
+Config_SqlConformance = ODBC[SQL_SC][SQL_SC_SQL92_FULL];  // null, 1, 2, 4, 8
+
+// This setting controls row count limits and offsets. If not set correctly, query
+// folding capabilities for this connector will be extremely limited. You can use
+// the LimitClauseKind constants to match common LIMIT/OFFSET SQL formats. If none
+// of the common formats match your desired SQL syntax, set LimitClauseKind to
+// LimitClauseKind.None and use the AstVisitor code below (commented out) to
+// generate a custom format.
+//
+// LimitClauseKind values and formats: 
+//
+// LimitClauseKind.Top (LIMIT only, OFFSET not supported)
+// -------------------
+// SELECT TOP 100 *
+// FROM table
+//
+// LimitClauseKind.Limit (LIMIT only, OFFSET not supported)
+// ---------------------
+// SELECT * 
+// FROM table
+// LIMIT 100
+//
+// LimitClauseKind.LimitOffset
+// ---------------------------
+// SELECT *
+// FROM table
+// LIMIT 100 OFFSET 200
+//
+// LimitClauseKind.AnsiSql2008
+// ---------------------------
+// (Limit + Offset)
+// SELECT *
+//    OFFSET 200 ROWS
+//    FETCH FIRST 100 ROWS ONLY
+// FROM table
+//
+Config_LimitClauseKind = LimitClauseKind.LimitOffset; // see above
+
 // Set this option to true if your ODBC supports the standard username/password 
-// handling through the UN and PWD connection string parameters. If the user 
+// handling through the UID and PWD connection string parameters. If the user 
 // selects UsernamePassword auth, the supplied values will be automatically
 // added to the CredentialConnectionString. 
 //
@@ -42,7 +96,7 @@ Config_DefaultUsernamePasswordHandling = true;  // true, false
 // Set to null to determine the value from the driver. 
 //
 Config_UseParameterBindings = false;  // true, false, null
-
+ 
 // Override this setting to force the character escape value. 
 // This is typically done when you have set UseParameterBindings to false.
 //
@@ -55,20 +109,14 @@ Config_StringLiterateEscapeCharacters  = { "\" }; // ex. { "\" }
 //
 // Set to false or null to leave default behavior. 
 //
-Config_UseCastInsteadOfConvert = false; // true, false, null 
-
-// If the driver supports the TOP clause in select statements, set this to true. 
-// If set to false, you MUST implement the AstVisitor for the LimitClause in the 
-// main body of the code below. 
-//
-Config_SupportsTop = false; // true, false
+Config_UseCastInsteadOfConvert = null; // true, false, null
 
 // Set this to true to enable Direct Query in addition to Import mode.
 //
 Config_EnableDirectQuery = true;    // true, false
 
 [DataSource.Kind="MongoDBPBI", Publish="MongoDBPBI.Publish"]
-shared MongoDBPBI.Contents = (server as text,  port as text, optional database as text) =>
+shared MongoDBPBI.Contents =  (server as text,  port as text, optional database as text) =>
     let
         //
         // Connection string settings
@@ -83,6 +131,7 @@ shared MongoDBPBI.Contents = (server as text,  port as text, optional database a
             Driver = Config_DriverName,
             ApplicationIntent = "readonly"
         ] & ConnectionRecords,
+
         //
         // Handle credentials
         // Credentials are not persisted with the query and are set through a separate 
@@ -105,8 +154,7 @@ shared MongoDBPBI.Contents = (server as text,  port as text, optional database a
 
         SqlCapabilities = defaultConfig[SqlCapabilities] & [
             // place custom overrides here
-            FractionalSecondsScale = 3,
-            LimitClauseKind = LimitClauseKind.LimitOffset
+            FractionalSecondsScale = 3
         ],
 
         // Please refer to the ODBC specification for SQLGetInfo properties and values.
@@ -164,10 +212,9 @@ shared MongoDBPBI.Contents = (server as text,  port as text, optional database a
                 source,
 
         // This record allows you to customize the generated SQL for certain
-        // operations. The most common usage is to define syntax for LIMIT/OFFSET operators 
-        // when TOP is not supported. 
-        // 
-
+        // operations. The most common usage is to define syntax for LIMIT/OFFSET operators.
+        //
+/*
         AstVisitor = [
             LimitClause = (skip, take) =>
                 let
@@ -176,10 +223,11 @@ shared MongoDBPBI.Contents = (server as text,  port as text, optional database a
                 in
                     [
                         Text = Text.Format("#{0} #{1}", {offset, limit}),
+                        // Possible values for Location - BeforeQuerySpecification, AfterQuerySpecification, AfterSelect, AfterSelectBeforeModifiers
                         Location = "AfterQuerySpecification"
                     ]
         ],
-
+*/
         OdbcDatasource = Odbc.DataSource(ConnectionString, [
             // A logical (true/false) that sets whether to view the tables grouped by their schema names
             HierarchicalNavigation = true, 
@@ -194,25 +242,25 @@ shared MongoDBPBI.Contents = (server as text,  port as text, optional database a
 
             // These values should be set by previous steps
             CredentialConnectionString = CredentialConnectionString,
-           /// AstVisitor = AstVisitor,
+            //AstVisitor = AstVisitor,
             SqlCapabilities = SqlCapabilities,
             SQLColumns = SQLColumns,
             SQLGetInfo = SQLGetInfo,
             SQLGetTypeInfo = SQLGetTypeInfo
         ])
     in
-        OdbcDatasource;
+        OdbcDatasource;  
 
 // Data Source Kind description
 MongoDBPBI = [
-     // Set the TestConnection handler to enable gateway support.
+    // Set the TestConnection handler to enable gateway support.
     // The TestConnection handler will invoke your data source function to 
     // validate the credentials the user has provider. Ideally, this is not 
     // an expensive operation to perform. By default, the dataSourcePath value 
     // will be a json string containing the required parameters of your data  
     // source function. These should be parsed and parsed as individual parameters
     // to the specified data source function.
-    TestConnection = (dataSourcePath) => 
+TestConnection = (dataSourcePath) => 
         let
             json = Json.Document(dataSourcePath),
             server = json[server],
@@ -232,8 +280,10 @@ MongoDBPBI.Publish = [
     Beta = true,
     Category = "Other",
     ButtonText = { Extension.LoadString("ButtonTitle"), Extension.LoadString("ButtonHelp") },
-    LearnMoreUrl = "https://www.mongodb.com/",
+    LearnMoreUrl = "https://docs.mongodb.com/bi-connector/current/",
+
     SupportsDirectQuery = Config_EnableDirectQuery,
+
     SourceImage = MongoDBPBI.Icons,
     SourceTypeImage = MongoDBPBI.Icons
 ];
@@ -287,11 +337,11 @@ BuildOdbcConfig = () as record =>
             else
                 withParams,
 
-        withTop =
+        withLimitClauseKind = 
             let
                 caps = withEscape[SqlCapabilities] & [ 
                     SqlCapabilities = [
-                        SupportsTop = Config_SupportsTop
+                        LimitClauseKind = Config_LimitClauseKind
                     ]
                 ]
             in
@@ -300,15 +350,15 @@ BuildOdbcConfig = () as record =>
         withCastOrConvert = 
             if (Config_UseCastInsteadOfConvert = true) then
                 let
-                    caps = withTop[SQLGetFunctions] & [ 
+                    caps = withLimitClauseKind[SQLGetFunctions] & [ 
                         SQLGetFunctions = [
                             SQL_CONVERT_FUNCTIONS = 0x2 /* SQL_FN_CVT_CAST */
                         ]
                     ]
                 in
-                    withTop & caps
+                    withLimitClauseKind & caps
             else
-                withTop,
+                withLimitClauseKind,
 
         withSqlConformance =
             if (Config_SqlConformance <> null) then
