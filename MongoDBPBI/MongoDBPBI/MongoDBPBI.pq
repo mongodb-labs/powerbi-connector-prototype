@@ -105,7 +105,8 @@ shared MongoDBPBI.Contents = (server as text,  port as text, optional database a
 
         SqlCapabilities = defaultConfig[SqlCapabilities] & [
             // place custom overrides here
-            FractionalSecondsScale = 3
+            FractionalSecondsScale = 3,
+            LimitClauseKind = LimitClauseKind.LimitOffset
         ],
 
         // Please refer to the ODBC specification for SQLGetInfo properties and values.
@@ -193,7 +194,7 @@ shared MongoDBPBI.Contents = (server as text,  port as text, optional database a
 
             // These values should be set by previous steps
             CredentialConnectionString = CredentialConnectionString,
-            //AstVisitor = AstVisitor,
+           /// AstVisitor = AstVisitor,
             SqlCapabilities = SqlCapabilities,
             SQLColumns = SQLColumns,
             SQLGetInfo = SQLGetInfo,
