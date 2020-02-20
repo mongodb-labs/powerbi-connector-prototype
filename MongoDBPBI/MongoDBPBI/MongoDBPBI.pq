@@ -39,7 +39,7 @@ Config_DriverName = "MongoDB ODBC 1.3.0 ANSI Driver";
 //
 // Set to null to determine the value from the driver.
 // 
-Config_SqlConformance = ODBC[SQL_SC][SQL_SC_SQL92_FULL];  // null, 1, 2, 4, 8
+Config_SqlConformance = 8;  // null, 1, 2, 4, 8
 
 // This setting controls row count limits and offsets. If not set correctly, query
 // folding capabilities for this connector will be extremely limited. You can use
@@ -95,7 +95,7 @@ Config_DefaultUsernamePasswordHandling = true;  // true, false
 // 
 // Set to null to determine the value from the driver. 
 //
-Config_UseParameterBindings = false;  // true, false, null
+Config_UseParameterBindings = true;  // true, false, null
  
 // Override this setting to force the character escape value. 
 // This is typically done when you have set UseParameterBindings to false.
@@ -154,7 +154,8 @@ shared MongoDBPBI.Contents =  (server as text,  port as text, optional database 
 
         SqlCapabilities = defaultConfig[SqlCapabilities] & [
             // place custom overrides here
-            FractionalSecondsScale = 3
+            FractionalSecondsScale = 3,
+            PrepareStatements = false
         ],
 
         // Please refer to the ODBC specification for SQLGetInfo properties and values.
@@ -162,7 +163,9 @@ shared MongoDBPBI.Contents =  (server as text,  port as text, optional database 
         SQLGetInfo = defaultConfig[SQLGetInfo] & [
             // place custom overrides here
             SQL_SQL92_PREDICATES = ODBC[SQL_SP][All],
-            SQL_AGGREGATE_FUNCTIONS = ODBC[SQL_AF][All]
+            SQL_AGGREGATE_FUNCTIONS = ODBC[SQL_AF][All],
+      SQL_CONVERT_FUNCTIONS = 0x2 /* CAST */,
+      SQL_CONVERT_BIGINT = Flags({BIT,TINYINT,SMALLINT,INTEGER,BIGINT,FLOAT,DOUBLE,REAL,DECIMAL,NUMERIC,CHAR,WCHAR,VARCHAR,WVARCHAR,LONGVARCHAR,WLONGVARCHAR,          TIMESTAMP,INTERVAL_DAY_TIME,INTERVAL_YEAR_MONTH                                    })   
         ],
 
         // SQLGetTypeInfo can be specified in two ways:
@@ -177,15 +180,65 @@ shared MongoDBPBI.Contents =  (server as text,  port as text, optional database 
         //
         // The sample implementation provided here will simply output the original table
         // to the user trace log, without any modification. 
-        SQLGetTypeInfo = (types) => 
-            if (EnableTraceOutput <> true) then types else
-            let
-                // Outputting the entire table might be too large, and result in the value being truncated.
-                // We can output a row at a time instead with Table.TransformRows()
-                rows = Table.TransformRows(types, each Diagnostics.LogValue("SQLGetTypeInfo " & _[TYPE_NAME], _)),
-                toTable = Table.FromRecords(rows)
-            in
-                Value.ReplaceType(toTable, Value.Type(types)),                
+        SQLGetTypeInfo =  #table(
+    { "TYPE_NAME",      "DATA_TYPE", "COLUMN_SIZE", "LITERAL_PREF", "LITERAL_SUFFIX", "CREATE_PARAS",           "NULLABLE", "CASE_SENSITIVE", "SEARCHABLE", "UNSIGNED_ATTRIBUTE", "FIXED_PREC_SCALE", "AUTO_UNIQUE_VALUE", "LOCAL_TYPE_NAME", "MINIMUM_SCALE", "MAXIMUM_SCALE", "SQL_DATA_TYPE", "SQL_DATETIME_SUB", "NUM_PREC_RADIX", "INTERNAL_PRECISION"}, {
+{"bit",-7,1,null,null,null,null,0,3,null,0,null,"bit(1)",null,null,-7,null,null,null},
+{"tinyint",-6,3,null,null,null,null,0,3,0,0,0,"tinyint",null,null,-6,null,10,null},
+{"tinyint unsigned",-6,3,null,null,null,null,0,3,1,0,0,"tinyint unsigned",null,null,-6,null,10,null},
+{"tinyint auto_increment",-6,3,null,null,null,0,0,3,0,0,1,"tinyint auto_increment",null,null,-6,null,10,null},
+{"tinyint unsigned auto_increment",-6,3,null,null,null,0,0,3,1,0,1,"tinyint unsigned auto_increment",null,null,-6,null,10,null},
+{"bigint",-5,19,null,null,null,null,0,3,0,0,0,"bigint",null,null,-5,null,10,null},
+{"bigint unsigned",-5,20,null,null,null,null,0,3,1,0,0,"bigint unsigned",null,null,-5,null,10,null},
+{"bigint auto_increment",-5,19,null,null,null,0,0,3,0,0,1,"bigint auto_increment",null,null,-5,null,10,null},
+{"bigint unsigned auto_increment",-5,20,null,null,null,0,0,3,1,0,1,"bigint unsigned auto_increment",null,null,-5,null,10,null},
+{"long varbinary",-4,16777215,"0x",null,null,null,0,3,null,0,null,"mediumblob",null,null,-4,null,null,null},
+{"blob",-4,65535,"'","'",null,null,0,3,null,0,null,"binary large object (0-65535)",null,null,-4,null,null,null},
+{"longblob",-4,2147483647,"'","'",null,null,0,3,null,0,null,"binary large object, use mediumblob instead",null,null,-4,null,null,null},
+{"tinyblob",-4,255,"'","'",null,null,0,3,null,0,null,"binary large object (0-255)",null,null,-4,null,null,null},
+{"mediumblob",-4,16777215,"'","'",null,null,0,3,null,0,null,"binary large object",null,null,-4,null,null,null},
+{"varbinary",-3,255,"'","'","length",null,0,3,null,0,null,"varbinary",null,null,-3,null,null,null},
+{"binary",-2,255,"'","'","length",null,0,3,null,0,null,"binary",null,null,-2,null,null,null},
+{"long varchar",-1,16777215,"'","'",null,null,0,3,null,0,null,"mediumtext",null,null,-1,null,null,null},
+{"text",-1,65535,"'","'",null,null,0,3,null,0,null,"text(0-65535)",null,null,-1,null,null,null},
+{"mediumtext",-1,16777215,"'","'",null,null,0,3,null,0,null,"mediumtext",null,null,-1,null,null,null},
+{"longtext",-1,2147483647,"'","'",null,null,0,3,null,0,null,"longtext",null,null,-1,null,null,null},
+{"tinytext",-1,255,"'","'",null,null,0,3,null,0,null,"tinytext",null,null,-1,null,null,null},
+{"char",1,255,"'","'","length",null,0,3,null,0,null,"char",null,null,1,null,null,null},
+{"numeric",2,19,null,null,"precision,scale",null,0,3,0,0,0,"numeric",0,19,2,null,10,null},
+{"decimal",3,19,null,null,"precision,scale",null,0,3,0,0,0,"decimal",0,19,3,null,10,null},
+{"integer",4,10,null,null,null,null,0,3,0,0,0,"integer",null,null,4,null,10,null},
+{"integer unsigned",4,10,null,null,null,null,0,3,1,0,0,"integer unsigned",null,null,4,null,10,null},
+{"int",4,10,null,null,null,null,0,3,0,0,0,"integer",null,null,4,null,10,null},
+{"int unsigned",4,10,null,null,null,null,0,3,1,0,0,"integer unsigned",null,null,4,null,10,null},
+{"mediumint",4,7,null,null,null,null,0,3,0,0,0,"Medium integer",null,null,4,null,10,null},
+{"mediumint unsigned",4,8,null,null,null,null,0,3,1,0,0,"Medium integer unsigned",null,null,4,null,10,null},
+{"integer auto_increment",4,10,null,null,null,0,0,3,0,0,1,"integer auto_increment",null,null,4,null,10,null},
+{"integer unsigned auto_increment",4,10,null,null,null,0,0,3,1,0,1,"integer unsigned auto_increment",null,null,4,null,10,null},
+{"int auto_increment",4,10,null,null,null,0,0,3,0,0,1,"integer auto_increment",null,null,4,null,10,null},
+{"int unsigned auto_increment",4,10,null,null,null,0,0,3,1,0,1,"integer unsigned auto_increment",null,null,4,null,10,null},
+{"mediumint auto_increment",4,7,null,null,null,0,0,3,0,0,1,"Medium integer auto_increment",null,null,4,null,10,null},
+{"mediumint unsigned auto_increment",4,8,null,null,null,0,0,3,1,0,1,"Medium integer unsigned auto_increment",null,null,4,null,10,null},
+{"smallint",5,5,null,null,null,null,0,3,0,0,0,"smallint",null,null,5,null,10,null},
+{"smallint unsigned",5,5,null,null,null,null,0,3,1,0,0,"smallint unsigned",null,null,5,null,10,null},
+{"smallint auto_increment",5,5,null,null,null,0,0,3,0,0,1,"smallint auto_increment",null,null,5,null,10,null},
+{"smallint unsigned auto_increment",5,5,null,null,null,0,0,3,1,0,1,"smallint unsigned auto_increment",null,null,5,null,10,null},
+{"double",8,15,null,null,null,null,0,3,0,0,0,"double",0,4,6,null,10,null},
+{"double auto_increment",8,15,null,null,null,0,0,3,0,0,1,"double auto_increment",0,4,6,null,10,null},
+{"float",7,7,null,null,null,null,0,0,0,0,0,"float",0,2,7,null,10,null},
+{"float auto_increment",7,7,null,null,null,0,0,0,0,0,1,"float auto_increment",0,2,7,null,10,null},
+{"double",8,15,null,null,null,null,0,3,0,0,0,"double",0,4,8,null,10,null},
+{"double auto_increment",8,15,null,null,null,0,0,3,0,0,1,"double auto_increment",0,4,8,null,10,null},
+{"date",91,10,"'","'",null,null,0,3,null,0,null,"date",null,null,null,91,null,null},
+{"time",92,8,"'","'",null,null,0,3,null,0,null,"time",null,null,null,92,null,null},
+{"year",5,4,null,null,null,null,0,3,0,0,0,"year",null,null,5,null,10,null},
+{"datetime",93,21,"'","'",null,null,0,3,null,0,null,"datetime",0,0,null,11,null,null},
+{"timestamp",93,14,"'","'",null,0,0,3,null,0,null,"timestamp",0,0,null,11,null,null},
+{"varchar",12,255,"'","'","length",null,0,3,null,0,null,"varchar",null,null,12,null,null,null}
+})
+
+,
+                
+
 
         // SQLColumns is a function handler that receives the results of an ODBC call
         // to SQLColumns(). The source parameter contains a table with the data type 
@@ -197,7 +250,7 @@ shared MongoDBPBI.Contents =  (server as text,  port as text, optional database 
         //
         // The sample implementation provided here will simply output the original table
         // to the user trace log, without any modification. 
-        SQLColumns = (catalogName, schemaName, tableName, columnName, source) =>
+       SQLColumns = (catalogName, schemaName, tableName, columnName, source) =>
             if (EnableTraceOutput <> true) then source else
             // the if statement conditions will force the values to evaluated/written to diagnostics
             if (Diagnostics.LogValue("SQLColumns.TableName", tableName) <> "***" and Diagnostics.LogValue("SQLColumns.ColumnName", columnName) <> "***") then
@@ -211,30 +264,13 @@ shared MongoDBPBI.Contents =  (server as text,  port as text, optional database 
             else
                 source,
 
-        // This record allows you to customize the generated SQL for certain
-        // operations. The most common usage is to define syntax for LIMIT/OFFSET operators.
-        //
-/*
-        AstVisitor = [
-            LimitClause = (skip, take) =>
-                let
-                    offset = if (skip <> null and skip > 0) then Text.Format("OFFSET #{0} ROWS", {skip}) else "",
-                    limit = if (take <> null) then Text.Format("LIMIT #{0}", {take}) else ""
-                in
-                    [
-                        Text = Text.Format("#{0} #{1}", {offset, limit}),
-                        // Possible values for Location - BeforeQuerySpecification, AfterQuerySpecification, AfterSelect, AfterSelectBeforeModifiers
-                        Location = "AfterQuerySpecification"
-                    ]
-        ],
-*/
         OdbcDatasource = Odbc.DataSource(ConnectionString, [
             // A logical (true/false) that sets whether to view the tables grouped by their schema names
             HierarchicalNavigation = true, 
             // Prevents execution of native SQL statements. Extensions should set this to true.
             HideNativeQuery = true,
             // Allows upconversion of numeric types
-            SoftNumbers = true,
+            SoftNumbers = false,
             // Allow upconversion / resizing of numeric and string types
             TolerateConcatOverflow = true,
             // Enables connection pooling via the system ODBC manager
@@ -242,7 +278,6 @@ shared MongoDBPBI.Contents =  (server as text,  port as text, optional database 
 
             // These values should be set by previous steps
             CredentialConnectionString = CredentialConnectionString,
-            //AstVisitor = AstVisitor,
             SqlCapabilities = SqlCapabilities,
             SQLColumns = SQLColumns,
             SQLGetInfo = SQLGetInfo,
@@ -347,12 +382,17 @@ BuildOdbcConfig = () as record =>
             in
                 withEscape & caps,
 
-        withCastOrConvert = 
-            if (Config_UseCastInsteadOfConvert = true) then
+withCastOrConvert = 
+            if (Config_UseCastInsteadOfConvert <> null) then
                 let
-                    caps = withLimitClauseKind[SQLGetFunctions] & [ 
-                        SQLGetFunctions = [
-                            SQL_CONVERT_FUNCTIONS = 0x2 /* SQL_FN_CVT_CAST */
+                    value =
+                        if (Config_UseCastInsteadOfConvert = true) then 
+                            ODBC[SQL_FN_CVT][SQL_FN_CVT_CAST]
+                        else
+                            ODBC[SQL_FN_CVT][SQL_FN_CVT_CONVERT],
+                    caps = withLimitClauseKind[SQLGetInfo] & [ 
+                        SQLGetInfo = [
+                            SQL_CONVERT_FUNCTIONS = value
                         ]
                     ]
                 in
@@ -392,4 +432,38 @@ Diagnostics.LogValue = if (EnableTraceOutput) then Diagnostics[LogValue] else (p
 // OdbcConstants contains numeric constants from the ODBC header files, and a 
 // helper function to create bitfield values.
 ODBC = Extension.LoadFunction("OdbcConstants.pqm");
-Odbc.Flags = ODBC[Flags];
+Flags = (flags as list) => 
+    let
+        Loop = List.Generate(()=> [i = 0, Combined = 0],
+                                each [i] < List.Count(flags),
+                                each [i = [i]+1, Combined = Number.BitwiseOr([Combined], flags{i})],
+                                each [Combined]),
+        Result = List.Last(Loop, 0)
+    in
+        Result;
+
+CHAR = 0x00000001;
+NUMERIC = 0x00000002;
+DECIMAL = 0x00000004;
+INTEGER = 0x00000008;
+SMALLINT = 0x00000010;
+FLOAT = 0x00000020;
+REAL = 0x00000040;
+DOUBLE = 0x00000080;
+VARCHAR = 0x00000100;
+LONGVARCHAR = 0x00000200;
+BINARY = 0x00000400;
+VARBINARY = 0x00000800;
+BIT = 0x00001000;
+TINYINT = 0x00002000;
+BIGINT = 0x00004000;
+DATE = 0x00008000;
+TIME = 0x00010000;
+TIMESTAMP = 0x00020000;
+LONGVARBINARY = 0x00040000;
+INTERVAL_YEAR_MONTH = 0x00080000;
+INTERVAL_DAY_TIME = 0x00100000;
+WCHAR = 0x00200000;
+WLONGVARCHAR = 0x00400000;
+WVARCHAR = 0x00800000;
+GUID = 0x01000000;
