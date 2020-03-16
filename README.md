@@ -9,6 +9,7 @@ This repository contains active development on a custom ODBC connector for Power
 
 ## Prerequisites
 1. Install the [MongoDB ODBC Driver 1.3.0](https://github.com/mongodb/mongo-odbc-driver/releases/tag/v1.3.0)
+2. Configure a local DSN for your MongoDB ODBC 1.3.0 ANSI Driver either at the user or system level
 
 ## Install the Connector
 1. Create the following directory path: ```[Documents]\Power BI Desktop\Custom Connectors```
@@ -23,7 +24,7 @@ This repository contains active development on a custom ODBC connector for Power
 1. In Power BI, browse to Get Data > More...
 2. Search for **MongoDB BI Connector (Beta)**
 3. Click Continue when presented with the warning message
-4. Enter your MongoDB BI Connector server, port and database
+4. Enter the name of the DSN for your MongoDB ODBC 1.3.0 ANSI Driver
 5. Choose "DirectQuery" mode
 6. Click OK to continue
 
